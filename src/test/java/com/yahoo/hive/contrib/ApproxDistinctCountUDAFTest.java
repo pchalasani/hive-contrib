@@ -1,10 +1,14 @@
 package com.yahoo.hive.contrib;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+import java.util.ArrayList;
 
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDAFEvaluator.Mode;
 import org.apache.hadoop.hive.serde2.io.DoubleWritable;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
@@ -25,15 +29,16 @@ public class ApproxDistinctCountUDAFTest {
 		SketchEvaluator evaluator = udaf.getEvaluator(info);
 		ObjectInspector[] parameters = {PrimitiveObjectInspectorFactory.javaStringObjectInspector};
 		ObjectInspector oi = evaluator.init(Mode.COMPLETE, parameters);
-		System.out.println(oi);
+		assertTrue(oi instanceof StructObjectInspector);
 		ApproxDistinctCountAggBuffer aggBuffer = evaluator.getNewAggregationBuffer();
 		String [] data = {"A","B","C","A","B","A"};
 		for(String datum : data) {
 			evaluator.iterate(aggBuffer, new Object[]{datum});
 		}
 		
-		DoubleWritable result = evaluator.terminate(aggBuffer);
-		assertEquals(result.get(), 3.0,0.1);
+		ArrayList<Object> results = evaluator.terminate(aggBuffer);
+		DoubleWritable cardinality = (DoubleWritable) results.get(0);
+		assertEquals(cardinality.get(), 3.0,0.1);
 	}
 	
 	@Test
@@ -43,7 +48,7 @@ public class ApproxDistinctCountUDAFTest {
 		SketchEvaluator evaluator = udaf.getEvaluator(info);
 		ObjectInspector[] parameters = {PrimitiveObjectInspectorFactory.writableBinaryObjectInspector};
 		ObjectInspector oi = evaluator.init(Mode.COMPLETE, parameters);
-		System.out.println(oi);
+		assertTrue(oi instanceof StructObjectInspector);
 		ApproxDistinctCountAggBuffer aggBuffer = evaluator.getNewAggregationBuffer();
 		
 		BytesWritable [] data = {
@@ -56,8 +61,9 @@ public class ApproxDistinctCountUDAFTest {
 			evaluator.iterate(aggBuffer, new Object[]{datum});
 		}
 		
-		DoubleWritable result = evaluator.terminate(aggBuffer);
-		assertEquals(result.get(), 3.0,0.1);
+		ArrayList<Object> results = evaluator.terminate(aggBuffer);
+		DoubleWritable cardinality = (DoubleWritable) results.get(0);
+		assertEquals(cardinality.get(), 3.0,0.1);
 	}
 	
 	private CountUniqueSketch newSketch(String datum) {
