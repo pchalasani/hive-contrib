@@ -8,6 +8,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.apache.hadoop.io.BytesWritable;
 import org.junit.Test;
 
 import com.yahoo.eta.stats.cus.CountUniqueSketch;
@@ -40,18 +41,18 @@ public class ApproxDistinctCountUDAFTest {
 		ApproxDistinctCountUDAF udaf = new ApproxDistinctCountUDAF();
 		TypeInfo[] info = {TypeInfoFactory.stringTypeInfo};
 		SketchEvaluator evaluator = udaf.getEvaluator(info);
-		ObjectInspector[] parameters = {PrimitiveObjectInspectorFactory.javaStringObjectInspector};
+		ObjectInspector[] parameters = {PrimitiveObjectInspectorFactory.writableBinaryObjectInspector};
 		ObjectInspector oi = evaluator.init(Mode.COMPLETE, parameters);
 		System.out.println(oi);
 		ApproxDistinctCountAggBuffer aggBuffer = evaluator.getNewAggregationBuffer();
 		
-		byte[] [] data = {
+		BytesWritable [] data = {
 				newSerializedSketch("A"),
 				newSerializedSketch("B"),
 				newSerializedSketch("A"),
 				newSerializedSketch("C")
 		};
-		for(byte[] datum : data) {
+		for(BytesWritable datum : data) {
 			evaluator.iterate(aggBuffer, new Object[]{datum});
 		}
 		
@@ -65,7 +66,8 @@ public class ApproxDistinctCountUDAFTest {
 		return sketch;
 	}
 	
-	private byte[] newSerializedSketch(String datum) {
-		return CountUniqueSketchSerialization.serializeSketch(newSketch(datum));
+	private BytesWritable newSerializedSketch(String datum) {
+		byte[] b =  CountUniqueSketchSerialization.serializeSketch(newSketch(datum));
+		return new BytesWritable(b);
 	}
 }

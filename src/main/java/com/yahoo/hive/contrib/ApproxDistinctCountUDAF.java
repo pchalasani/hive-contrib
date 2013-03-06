@@ -1,5 +1,7 @@
 package com.yahoo.hive.contrib;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.hive.ql.exec.Description;
 import org.apache.hadoop.hive.ql.exec.UDFArgumentTypeException;
 import org.apache.hadoop.hive.ql.metadata.HiveException;
@@ -13,6 +15,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.BytesWritable;
 
@@ -33,8 +36,10 @@ extended =  "Example:" +
 
 public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver{
 
+	static final Log log = LogFactory.getLog(ApproxDistinctCountUDAF.class);
+	
 	@Override
-	public GenericUDAFEvaluator getEvaluator(TypeInfo[] info)
+	public SketchEvaluator getEvaluator(TypeInfo[] info)
 			throws SemanticException {
 		if (info.length != 1) {
 		      throw new UDFArgumentTypeException(info.length - 1,
@@ -49,7 +54,7 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver{
 		return new SketchEvaluator();
 	}
 
-	static class SketchEvaluator extends GenericUDAFEvaluator {
+	public static class SketchEvaluator extends GenericUDAFEvaluator {
 
 		//input OI
 		PrimitiveObjectInspector inputOI;
@@ -57,26 +62,29 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver{
 		// intermediate results
 		BinaryObjectInspector partialOI;
 		
-		BytesWritable partial;
+		BytesWritable partial = new BytesWritable();
         
 		@Override
 		public ObjectInspector init(Mode m, ObjectInspector[] parameters)
 				throws HiveException {
+			super.init(m, parameters);
 			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {
 				assert (parameters.length == 1);
 				inputOI = (PrimitiveObjectInspector) parameters[0];
 			} else {
 				partialOI = (BinaryObjectInspector) parameters[0];
 			}
+			
+
 			if (m == Mode.PARTIAL1 || m == Mode.PARTIAL2) {
 				return PrimitiveObjectInspectorFactory.writableBinaryObjectInspector;
 			} else {
-				return PrimitiveObjectInspectorFactory.writableLongObjectInspector;
+				return PrimitiveObjectInspectorFactory.writableDoubleObjectInspector;
 			}
 		}
 
 		@Override
-		public AggregationBuffer getNewAggregationBuffer() throws HiveException {
+		public ApproxDistinctCountAggBuffer getNewAggregationBuffer() throws HiveException {
 			ApproxDistinctCountAggBuffer buffer = new ApproxDistinctCountAggBuffer();
 			reset(buffer);
 			return buffer;
@@ -91,37 +99,40 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver{
 			Object obj = parameters[0];
 			ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;
 			if (inputOI != null) {
-				if (aggBuffer.sketch == null) {
-					aggBuffer.sketch = new CountUniqueSketch();
-				}
-				if (obj instanceof String) {
-					aggBuffer.sketch.update((String)obj);
-				} else {
-					aggBuffer.sketch.update((byte [])obj);
-				}
+				BytesWritable binary = PrimitiveObjectInspectorUtils.getBinary(obj, inputOI);
+				aggBuffer.sketch.update(binary.getBytes());
 			}
 		}
 
 		@Override
 		public void merge(AggregationBuffer buffer, Object obj)
 				throws HiveException {
-			// TODO Auto-generated method stub
-			BytesWritable bw = (BytesWritable) obj;
-			ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;
-			aggBuffer.sketch.update(bw.getBytes());
+			if (obj != null) {
+				BytesWritable bw = (BytesWritable) obj;
+				ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;	
+				byte[] bytes = new byte[bw.getLength()];
+				System.arraycopy(bw.getBytes(), 0, bytes, 0, bw.getLength());
+
+				CountUniqueSketch other = CountUniqueSketchSerialization.deserializeSketch(bytes);
+				aggBuffer.sketch = aggBuffer.sketch.merge(other);
+			}
 		}
 
 		@Override
 		public void reset(AggregationBuffer buffer) throws HiveException {
-			((ApproxDistinctCountAggBuffer) buffer).sketch = null;
+			((ApproxDistinctCountAggBuffer) buffer).sketch = new CountUniqueSketch();
 		}
 
 		@Override
-		public Object terminate(AggregationBuffer buffer) throws HiveException {
+		public DoubleWritable terminate(AggregationBuffer buffer) throws HiveException {
 			ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;
-			DoubleWritable dw = new DoubleWritable();
-			dw.set(aggBuffer.sketch.getInverseEstimate());
-			return dw;
+			if (aggBuffer.sketch.isEmpty()) {
+				return null;
+			} else {
+				DoubleWritable dw = new DoubleWritable();
+				dw.set(aggBuffer.sketch.getInverseEstimate());
+				return dw;
+			}
 		}
 
 		@Override
@@ -137,7 +148,7 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver{
 	
 	static class ApproxDistinctCountAggBuffer implements AggregationBuffer {
 		
-		private CountUniqueSketch sketch;
+		CountUniqueSketch sketch;
 		
 	}
 }
