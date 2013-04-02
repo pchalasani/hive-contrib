@@ -17,10 +17,14 @@ import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector.Category;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.BinaryObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.LongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.StringObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.Text;
 
 import com.yahoo.eta.stats.cus.CountUniqueSketch;
 import com.yahoo.eta.stats.cus.CountUniqueSketchSerialization;
@@ -115,16 +119,34 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 			Object obj = parameters[0];
 			ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;
 			if (inputOI != null) {
-				BytesWritable binary = PrimitiveObjectInspectorUtils.getBinary(
-						obj, inputOI);
-				byte[] bytes = binary.getBytes();
-				if (inputOI instanceof BinaryObjectInspector) {
-					byte[] trimmedBytes = new byte[binary.getLength()];
-					System.arraycopy(bytes, 0, trimmedBytes, 0, trimmedBytes.length);
-					CountUniqueSketch other = CountUniqueSketchSerialization.deserializeSketch(trimmedBytes);
-					aggBuffer.sketch = aggBuffer.sketch.merge(other);
-				} else {
-					aggBuffer.sketch.update(bytes);
+				switch (inputOI.getPrimitiveCategory()) {
+				case INT: {
+					int v = ((IntObjectInspector)inputOI).get(obj);
+					aggBuffer.sketch.update(v);
+					break;
+				}
+				case LONG: {
+					long v = ((LongObjectInspector)inputOI).get(obj);
+					aggBuffer.sketch.update(v);
+					break;
+				}
+				case STRING:
+				case BINARY:
+				default: {
+					BytesWritable binary = PrimitiveObjectInspectorUtils
+							.getBinary(obj, inputOI);
+					byte[] bytes = binary.getBytes();
+					if (inputOI instanceof BinaryObjectInspector) {
+						byte[] trimmedBytes = new byte[binary.getLength()];
+						System.arraycopy(bytes, 0, trimmedBytes, 0,
+								trimmedBytes.length);
+						CountUniqueSketch other = CountUniqueSketchSerialization
+								.deserializeSketch(trimmedBytes);
+						aggBuffer.sketch = aggBuffer.sketch.merge(other);
+					} else {
+						aggBuffer.sketch.update(bytes);
+					}
+				}
 				}
 				
 			}

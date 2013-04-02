@@ -40,7 +40,25 @@ public class ApproxDistinctCountUDAFTest {
 		DoubleWritable cardinality = (DoubleWritable) results.get(0);
 		assertEquals(cardinality.get(), 3.0,0.1);
 	}
-	
+
+	@Test
+	public void testPositiveCompleteLong() throws Exception {
+		ApproxDistinctCountUDAF udaf = new ApproxDistinctCountUDAF();
+		TypeInfo[] info = {TypeInfoFactory.longTypeInfo};
+		SketchEvaluator evaluator = udaf.getEvaluator(info);
+		ObjectInspector[] parameters = {PrimitiveObjectInspectorFactory.javaLongObjectInspector};
+		ObjectInspector oi = evaluator.init(Mode.COMPLETE, parameters);
+		assertTrue(oi instanceof StructObjectInspector);
+		ApproxDistinctCountAggBuffer aggBuffer = evaluator.getNewAggregationBuffer();
+		long [] data = {120L,33L,120L,120L,44L};
+		for(long datum : data) {
+			evaluator.iterate(aggBuffer, new Object[]{datum});
+		}
+		
+		ArrayList<Object> results = evaluator.terminate(aggBuffer);
+		DoubleWritable cardinality = (DoubleWritable) results.get(0);
+		assertEquals(cardinality.get(), 3.0,0.1);
+	}
 	@Test
 	public void testPositiveCompleteBinary() throws Exception {
 		ApproxDistinctCountUDAF udaf = new ApproxDistinctCountUDAF();
