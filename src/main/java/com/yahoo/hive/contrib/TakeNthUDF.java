@@ -1,5 +1,6 @@
 package com.yahoo.hive.contrib;
 
+import java.util.AbstractList;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -43,16 +44,26 @@ public class TakeNthUDF extends GenericUDF {
 		if (arguments[0].get() == null || arguments[1].get() == null) {
 			return null;
 		}
-		ArrayList<Text> input = (ArrayList<Text>)inputConverter.convert(arguments[0].get());
+		@SuppressWarnings("unchecked")
+		final ArrayList<Text> input = (ArrayList<Text>)inputConverter.convert(arguments[0].get());
 		IntWritable n = (IntWritable)nthConverter.convert(arguments[1].get());
-		int v = n.get();
-		ArrayList<Text> results = new ArrayList<Text>();
-		for (int i = 0, size = input.size(); i< size ; i++) {
-			if (i % v == 0) {
-				results.add(input.get(i));
+		final int v = n.get();
+		final int size = (int)Math.round(Math.ceil(input.size() / (v + 0.0)));
+		return new AbstractList<Text>(){
+
+			@Override
+			public Text get(int index) {
+				// TODO Auto-generated method stub
+				return input.get(v*index);
 			}
-		}
-		return results;
+
+			@Override
+			public int size() {
+				// TODO Auto-generated method stub
+				return size;
+			}
+			
+		};
 	}
 
 	@Override
@@ -60,7 +71,7 @@ public class TakeNthUDF extends GenericUDF {
 			throws UDFArgumentException {
 		if (arguments.length != 2) {
 			throw new UDFArgumentLengthException(
-					"The function SPLIT(s, regexp) takes exactly 2 arguments.");
+					"The function nth(s, regexp) takes exactly 2 arguments.");
 		}
 		inputConverter = ObjectInspectorConverters.getConverter(
 				arguments[0],

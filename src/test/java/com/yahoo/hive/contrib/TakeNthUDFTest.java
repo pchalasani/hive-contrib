@@ -32,6 +32,7 @@ public class TakeNthUDFTest {
 				new DeferredJavaObject(input),
 				new DeferredJavaObject(2) });
 		assertEquals(results.size(), 3);
+		assertEquals(results.get(1).toString(), "6");
 	}
 
 }
