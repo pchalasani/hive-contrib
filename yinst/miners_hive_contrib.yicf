@@ -1,0 +1,22 @@
+PRODUCT_NAME = miners_hive_contrib
+
+SHORT_DESC = User defined functions and other contributions to Hive
+LONG_DESC = `cat README`
+
+CUSTODIAN = shark-devel@yahoo-inc.com https://git.corp.yahoo.com/harshars/hive-contrib
+
+# Pick up version number from the README file
+VERSION = `awk '/^Version/ {print $2; exit}' README`
+
+HIVE_CONTRIB_HOME = libexec/$(PRODUCT_NAME)-$(VERSION)
+
+YINST bug-product miner CORE libraries
+YINST bug-component General
+
+SRCDIRS = ..
+
+PACKAGE_OS_SPECIFIC = no
+YINST requires pkg CountUniqueSketch
+
+find 0755 - - $(HIVE_CONTRIB_HOME)/jars/ ../target/ -name "*.jar" -type f
+symlink - - - libexec/$(PRODUCT_NAME) $(PRODUCT_NAME)-$(VERSION)/
