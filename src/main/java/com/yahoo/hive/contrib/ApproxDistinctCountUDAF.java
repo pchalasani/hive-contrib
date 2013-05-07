@@ -79,7 +79,6 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 		public ObjectInspector init(Mode m, ObjectInspector[] parameters)
 				throws HiveException {
 			super.init(m, parameters);
-			System.out.println("Init : " + m);
 			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {
 				assert (parameters.length == 1);
 				inputOI = (PrimitiveObjectInspector) parameters[0];
