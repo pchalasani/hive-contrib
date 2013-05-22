@@ -24,9 +24,9 @@ import org.apache.hadoop.io.BytesWritable;
 import com.yahoo.streamlib.MinHash;
 
 @Description(name = "minhash", 
-value = "_FUNC_(x, k, n) - computes the signature of a set " +
-		"where k = number of buckets and n = size of the universe, returns a binary ",
-extended = "Example: SELECT minhash(value) FROM src;")
+value = "_FUNC_(x, k) - computes the signature of a set " +
+		"where k = number of buckets, returns a binary ",
+extended = "Example: SELECT minhash(value,32) FROM src;")
 public class MinHashUDAF extends AbstractGenericUDAFResolver{
 
 	static final Log log = LogFactory.getLog(MinHashUDAF.class);
@@ -34,9 +34,9 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 	@Override
 	public MinHashEvaluator getEvaluator(TypeInfo[] info)
 			throws SemanticException {
-		if (info.length < 1 || info.length > 3) {
+		if (info.length < 1 || info.length > 2) {
 			throw new UDFArgumentTypeException(info.length - 1,
-					"Please specify one to three arguments.");
+					"Please specify one to two arguments.");
 		}
 		Category category = info[0].getCategory();
 		if (!category.equals(ObjectInspector.Category.PRIMITIVE)) {
@@ -53,7 +53,6 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 		// input OI
 		PrimitiveObjectInspector inputOI;
 		IntObjectInspector kOI;
-		IntObjectInspector nOI;
 
 		// intermediate results
 		BinaryObjectInspector partialOI;
@@ -67,7 +66,6 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 			if (m == Mode.PARTIAL1 || m == Mode.COMPLETE) {
 				inputOI = (PrimitiveObjectInspector) parameters[0];
 				kOI = (IntObjectInspector)parameters[1];
-				nOI = (IntObjectInspector)parameters[2];
 			} else {
 				partialOI = (BinaryObjectInspector) parameters[0];
 			}
@@ -93,8 +91,7 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 			
 			if (!aggBuffer.initialized()) {
 				int k = kOI.get(parameters[1]);
-				int n = nOI.get(parameters[2]);
-				aggBuffer.signature = new MinHash(k,n);
+				aggBuffer.signature = new MinHash(k);
 			}
 			if (inputOI != null) {
 				switch (inputOI.getPrimitiveCategory()) {
@@ -145,7 +142,7 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 
 				MinHash other = MinHash.fromBytes(bytes);
 				if (!aggBuffer.initialized()) {
-					aggBuffer.signature = new MinHash(other.getK(),other.getN());
+					aggBuffer.signature = new MinHash(other.getK());
 				}
 				aggBuffer.signature = aggBuffer.signature.merge(other);
 			}
@@ -153,7 +150,8 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 
 		@Override
 		public void reset(AggregationBuffer buffer) throws HiveException {
-			((MinHashAggBuffer)buffer).signature = null;
+			MinHashAggBuffer aggBuffer = (MinHashAggBuffer)buffer;
+			aggBuffer.reset();
 		}
 
 		@Override
@@ -175,10 +173,16 @@ public class MinHashUDAF extends AbstractGenericUDAFResolver{
 		}
 	}
 	static class MinHashAggBuffer implements AggregationBuffer {
-		MinHash signature ;
+		volatile MinHash signature ;
 		
 		public boolean initialized() {
 			return signature != null;
+		}
+		
+		public void reset() {
+			if (signature != null) {
+				signature = signature.empty();
+			}
 		}
 	}
 }

@@ -25,7 +25,6 @@ public class MinHashUDAFTest {
 		MinHashEvaluator evaluator = udaf.getEvaluator(info);
 		ObjectInspector[] parameters = {
 				PrimitiveObjectInspectorFactory.javaStringObjectInspector,
-				PrimitiveObjectInspectorFactory.javaIntObjectInspector,
 				PrimitiveObjectInspectorFactory.javaIntObjectInspector
 		};
 		ObjectInspector oi = evaluator.init(Mode.COMPLETE, parameters);
@@ -33,7 +32,7 @@ public class MinHashUDAFTest {
 		MinHashAggBuffer aggBuffer = evaluator.getNewAggregationBuffer();
 		String [] data = {"A","B","C","A","B","A"};
 		for(String datum : data) {
-			evaluator.iterate(aggBuffer, new Object[]{datum, 32, 32});
+			evaluator.iterate(aggBuffer, new Object[]{datum, 32});
 		}
 		
 		BytesWritable results = evaluator.terminate(aggBuffer);

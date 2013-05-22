@@ -21,10 +21,9 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.IntObjectInspecto
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.LongObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorUtils;
-import org.apache.hadoop.hive.serde2.objectinspector.primitive.StringObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.LongWritable;
 
 import com.yahoo.eta.stats.cus.CountUniqueSketch;
 import com.yahoo.eta.stats.cus.CountUniqueSketchSerialization;
@@ -94,7 +93,7 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
                 fNames.add(ERROR);
                 fNames.add(SKETCH);
                 ArrayList<ObjectInspector> foi = new ArrayList<ObjectInspector>();
-                foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
+                foi.add(PrimitiveObjectInspectorFactory.writableLongObjectInspector);
                 foi.add(PrimitiveObjectInspectorFactory.writableDoubleObjectInspector);
                 foi.add(PrimitiveObjectInspectorFactory.writableBinaryObjectInspector);
                 return ObjectInspectorFactory.getStandardStructObjectInspector(fNames, foi);
@@ -117,6 +116,9 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 			}
 			Object obj = parameters[0];
 			ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;
+			if (!aggBuffer.initialized()) {
+				aggBuffer.sketch = new CountUniqueSketch();
+			}
 			if (inputOI != null) {
 				switch (inputOI.getPrimitiveCategory()) {
 				case INT: {
@@ -162,13 +164,16 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 
 				CountUniqueSketch other = CountUniqueSketchSerialization
 						.deserializeSketch(bytes);
+				if (!aggBuffer.initialized()) {
+					aggBuffer.sketch = new CountUniqueSketch();
+				}
 				aggBuffer.sketch = aggBuffer.sketch.merge(other);
 			}
 		}
 
 		@Override
 		public void reset(AggregationBuffer buffer) throws HiveException {
-			((ApproxDistinctCountAggBuffer) buffer).sketch = new CountUniqueSketch();
+			((ApproxDistinctCountAggBuffer) buffer).reset();
 		}
 
 		@Override
@@ -178,8 +183,8 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 			if (aggBuffer.sketch.isEmpty()) {
 				return null;
 			} else {
-				DoubleWritable cardinality = new DoubleWritable();
-				cardinality.set(aggBuffer.sketch.getInverseEstimate());
+				LongWritable cardinality = new LongWritable();
+				cardinality.set(Math.round(aggBuffer.sketch.getInverseEstimate()));
 				DoubleWritable error = new DoubleWritable();
 				error.set(aggBuffer.sketch.getVariance());
 				BytesWritable sketch = new BytesWritable();
@@ -208,6 +213,15 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 	static class ApproxDistinctCountAggBuffer implements AggregationBuffer {
 
 		CountUniqueSketch sketch;
-
+		
+		void reset() {
+			if (sketch != null) {
+				sketch = null;
+			}
+		}
+		
+		boolean initialized() {
+			return sketch != null;
+		}
 	}
 }

@@ -100,8 +100,8 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 			OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
 			MinHash xSignature = fromBytes(xbinary);
 			if (!aggBuffer.initialized()) {
-				aggBuffer.xsignature = new MinHash(xSignature.getK(),xSignature.getN());
-				aggBuffer.ysignature = new MinHash(xSignature.getK(),xSignature.getN());
+				aggBuffer.xsignature = new MinHash(xSignature.getK());
+				aggBuffer.ysignature = new MinHash(xSignature.getK());
 			}
 			aggBuffer.xsignature = aggBuffer.xsignature
 					.merge(xSignature);
@@ -136,8 +136,8 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 				System.arraycopy(bytes, 8 + xLength, yBytes, 0, yLength);
 				MinHash xSignature = MinHash.fromBytes(xBytes);
 				if (!aggBuffer.initialized()) {
-					aggBuffer.xsignature = new MinHash(xSignature.getK(),xSignature.getN());
-					aggBuffer.ysignature = new MinHash(xSignature.getK(),xSignature.getN());
+					aggBuffer.xsignature = new MinHash(xSignature.getK());
+					aggBuffer.ysignature = new MinHash(xSignature.getK());
 				}
 				
 				aggBuffer.xsignature = aggBuffer.xsignature.merge(xSignature);
@@ -148,8 +148,8 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 
 		@Override
 		public void reset(AggregationBuffer buffer) throws HiveException {
-			((OverlapAggBuffer) buffer).xsignature = null;
-			((OverlapAggBuffer) buffer).ysignature = null;
+			OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
+			aggBuffer.reset();
 		}
 
 		@Override
@@ -190,6 +190,13 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 		
 		public boolean initialized() {
 			return xsignature != null && ysignature !=null;
+		}
+
+		public void reset() {
+			if (initialized()) {
+				xsignature = xsignature.empty();
+				ysignature = xsignature.empty();
+			}
 		}
 	}
 }

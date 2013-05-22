@@ -20,11 +20,18 @@
       <version>4.8.2</version>
       <scope>test</scope>
     </dependency>
-    <dependency>
+   <!-- <dependency>
       <groupId>yahoo.yinst.streamlib</groupId>
       <artifactId>streamlib</artifactId>
-      <version>0.7</version>
-    </dependency> 
+      <version>0.9</version>
+    </dependency> -->
+    <dependency>
+            <groupId>com.yahoo</groupId>
+            <artifactId>streamlib</artifactId>
+            <version>0.9</version>
+            <scope>system</scope>
+                <systemPath>${project.basedir}/lib/streamlib-0.9.jar</systemPath>
+        </dependency> 
     <dependency>
       <groupId>yahoo.yinst.CountUniqueSketch</groupId>
       <artifactId>CountUniqueSketch</artifactId>

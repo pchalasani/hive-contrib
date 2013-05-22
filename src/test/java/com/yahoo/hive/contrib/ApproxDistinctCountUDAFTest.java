@@ -13,6 +13,7 @@ import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectIn
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.io.BytesWritable;
+import org.apache.hadoop.io.LongWritable;
 import org.junit.Test;
 
 import com.yahoo.eta.stats.cus.CountUniqueSketch;
@@ -37,8 +38,8 @@ public class ApproxDistinctCountUDAFTest {
 		}
 		
 		ArrayList<Object> results = evaluator.terminate(aggBuffer);
-		DoubleWritable cardinality = (DoubleWritable) results.get(0);
-		assertEquals(cardinality.get(), 3.0,0.1);
+		LongWritable cardinality = (LongWritable) results.get(0);
+		assertEquals(cardinality.get(), 3L,0.1);
 	}
 
 	@Test
@@ -56,8 +57,8 @@ public class ApproxDistinctCountUDAFTest {
 		}
 		
 		ArrayList<Object> results = evaluator.terminate(aggBuffer);
-		DoubleWritable cardinality = (DoubleWritable) results.get(0);
-		assertEquals(cardinality.get(), 3.0,0.1);
+		LongWritable cardinality = (LongWritable) results.get(0);
+		assertEquals(cardinality.get(), 3L,0.1);
 	}
 	@Test
 	public void testPositiveCompleteBinary() throws Exception {
@@ -80,8 +81,8 @@ public class ApproxDistinctCountUDAFTest {
 		}
 		
 		ArrayList<Object> results = evaluator.terminate(aggBuffer);
-		DoubleWritable cardinality = (DoubleWritable) results.get(0);
-		assertEquals(cardinality.get(), 3.0,0.1);
+		LongWritable cardinality = (LongWritable) results.get(0);
+		assertEquals(cardinality.get(), 3L,0.1);
 	}
 	
 	private CountUniqueSketch newSketch(String datum) {
