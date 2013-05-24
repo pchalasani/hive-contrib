@@ -15,15 +15,15 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.io.BytesWritable;
 import org.junit.Test;
 
-import com.yahoo.hive.contrib.OverlapUDAF.OverlapAggBuffer;
-import com.yahoo.hive.contrib.OverlapUDAF.OverlapEvaluator;
+import com.yahoo.hive.contrib.SimilarityUDAF.OverlapAggBuffer;
+import com.yahoo.hive.contrib.SimilarityUDAF.OverlapEvaluator;
 import com.yahoo.streamlib.MinHash;
 
-public class OverlapUDAFTest {
+public class SimilarityUDAFTest {
 
 	@Test
 	public void test() throws Exception{
-		OverlapUDAF udaf = new OverlapUDAF();
+		SimilarityUDAF udaf = new SimilarityUDAF();
 		TypeInfo [] infos = {
 				TypeInfoFactory.binaryTypeInfo,
 				TypeInfoFactory.binaryTypeInfo
@@ -47,7 +47,7 @@ public class OverlapUDAFTest {
 
 	@Test
 	public void test2() throws Exception{
-		OverlapUDAF udaf = new OverlapUDAF();
+		SimilarityUDAF udaf = new SimilarityUDAF();
 		TypeInfo [] infos = {
 				TypeInfoFactory.binaryTypeInfo,
 				TypeInfoFactory.binaryTypeInfo

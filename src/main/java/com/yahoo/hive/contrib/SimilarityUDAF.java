@@ -20,16 +20,16 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.BytesWritable;
 
 import com.google.common.primitives.Ints;
-import com.yahoo.streamlib.ModHash;
+import com.yahoo.streamlib.MinHash;
 
-@Description(name = "overlap", value = "_FUNC_(x) - computes the overlap between two sets "
-		+ ", using the containment sketch ", extended = "Example: SELECT containment(x,y) FROM src;")
-public class OverlapUDAF extends AbstractGenericUDAFResolver {
+@Description(name = "similarity", value = "_FUNC_(x) - computes the similarity between two sets "
+		+ ", using the Jaccard Index computed via min hash ", extended = "Example: SELECT overlap(x,y) FROM src;")
+public class SimilarityUDAF extends AbstractGenericUDAFResolver {
 
 	static final Log log = LogFactory.getLog(SimilarityUDAF.class);
 
 	@Override
-	public ContainmentEvaluator getEvaluator(TypeInfo[] info)
+	public OverlapEvaluator getEvaluator(TypeInfo[] info)
 			throws SemanticException {
 		if (info.length != 2) {
 			throw new UDFArgumentTypeException(info.length - 1,
@@ -49,10 +49,10 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 							+ info[0].getTypeName()
 							+ " was passed as parameter.");
 		}
-		return new ContainmentEvaluator();
+		return new OverlapEvaluator();
 	}
 
-	public static class ContainmentEvaluator extends GenericUDAFEvaluator {
+	public static class OverlapEvaluator extends GenericUDAFEvaluator {
 
 		// input OI
 		BinaryObjectInspector inputOIx;
@@ -84,8 +84,8 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 		}
 
 		@Override
-		public ContainmentAggBuffer getNewAggregationBuffer() throws HiveException {
-			ContainmentAggBuffer buffer = new ContainmentAggBuffer();
+		public OverlapAggBuffer getNewAggregationBuffer() throws HiveException {
+			OverlapAggBuffer buffer = new OverlapAggBuffer();
 			reset(buffer);
 			return buffer;
 		}
@@ -96,11 +96,11 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 			BytesWritable xbinary = PrimitiveObjectInspectorUtils.getBinary(
 					parameters[0], inputOIx);
 
-			ContainmentAggBuffer aggBuffer = (ContainmentAggBuffer) buffer;
-			ModHash xSignature = fromBytes(xbinary);
+			OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
+			MinHash xSignature = fromBytes(xbinary);
 			if (!aggBuffer.initialized()) {
-				aggBuffer.xsignature = xSignature.empty();
-				aggBuffer.ysignature = xSignature.empty();
+				aggBuffer.xsignature = new MinHash(xSignature.getK());
+				aggBuffer.ysignature = new MinHash(xSignature.getK());
 			}
 			aggBuffer.xsignature = aggBuffer.xsignature
 					.merge(xSignature);
@@ -110,18 +110,18 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 					.merge(fromBytes(ybinary));
 		}
 
-		private ModHash fromBytes(BytesWritable binary) {
+		private MinHash fromBytes(BytesWritable binary) {
 			byte[] xbytes = binary.getBytes();
 			byte[] trimmedBytes = new byte[binary.getLength()];
 			System.arraycopy(xbytes, 0, trimmedBytes, 0, trimmedBytes.length);
-			return ModHash.fromBytes(trimmedBytes);
+			return MinHash.fromBytes(trimmedBytes);
 		}
 
 		@Override
 		public void merge(AggregationBuffer buffer, Object obj)
 				throws HiveException {
 			if (obj != null) {
-				ContainmentAggBuffer aggBuffer = (ContainmentAggBuffer) buffer;
+				OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
 				BytesWritable bw = (BytesWritable) obj;
 				byte[] bytes = new byte[bw.getLength()];
 				System.arraycopy(bw.getBytes(), 0, bytes, 0, bw.getLength());
@@ -133,38 +133,38 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 				System.arraycopy(bytes, 8, xBytes, 0, xLength);
 				byte[] yBytes = new byte[yLength];
 				System.arraycopy(bytes, 8 + xLength, yBytes, 0, yLength);
-				ModHash xSignature = ModHash.fromBytes(xBytes);
-				ModHash ySignature = ModHash.fromBytes(yBytes);
+				MinHash xSignature = MinHash.fromBytes(xBytes);
 				if (!aggBuffer.initialized()) {
-					aggBuffer.xsignature = xSignature.empty();
-					aggBuffer.ysignature = ySignature.empty();
+					aggBuffer.xsignature = new MinHash(xSignature.getK());
+					aggBuffer.ysignature = new MinHash(xSignature.getK());
 				}
 				
 				aggBuffer.xsignature = aggBuffer.xsignature.merge(xSignature);
-				aggBuffer.ysignature = aggBuffer.ysignature.merge(ySignature);
+				aggBuffer.ysignature = aggBuffer.ysignature.merge(MinHash
+						.fromBytes(yBytes));
 			}
 		}
 
 		@Override
 		public void reset(AggregationBuffer buffer) throws HiveException {
-			ContainmentAggBuffer aggBuffer = (ContainmentAggBuffer) buffer;
+			OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
 			aggBuffer.reset();
 		}
 
 		@Override
 		public Object terminate(AggregationBuffer buffer) throws HiveException {
-			ContainmentAggBuffer aggBuffer = (ContainmentAggBuffer) buffer;
-			ModHash x = aggBuffer.xsignature;
-			ModHash y = aggBuffer.ysignature;
-			double cEst = x.containmentEstimate(y).getAinB();
-			DoubleWritable w = new DoubleWritable(cEst);
+			OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
+			MinHash x = aggBuffer.xsignature;
+			MinHash y = aggBuffer.ysignature;
+			double jaccard = x.jaccardSimilarity(y);
+			DoubleWritable w = new DoubleWritable(jaccard);
 			return w;
 		}
 
 		@Override
 		public Object terminatePartial(AggregationBuffer buffer)
 				throws HiveException {
-			ContainmentAggBuffer aggBuffer = (ContainmentAggBuffer) buffer;
+			OverlapAggBuffer aggBuffer = (OverlapAggBuffer) buffer;
 			byte[] xBytes = aggBuffer.xsignature.toBytes();
 			byte[] yBytes = aggBuffer.ysignature.toBytes();
 			byte[] bytes = new byte[xBytes.length + yBytes.length + 8];
@@ -183,9 +183,9 @@ public class OverlapUDAF extends AbstractGenericUDAFResolver {
 
 	}
 
-	static class ContainmentAggBuffer implements AggregationBuffer {
-		ModHash xsignature ;
-		ModHash ysignature ;
+	static class OverlapAggBuffer implements AggregationBuffer {
+		MinHash xsignature ;
+		MinHash ysignature ;
 		
 		public boolean initialized() {
 			return xsignature != null && ysignature !=null;
