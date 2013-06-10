@@ -180,7 +180,7 @@ public class ApproxDistinctCountUDAF extends AbstractGenericUDAFResolver {
 		public ArrayList<Object> terminate(AggregationBuffer buffer)
 				throws HiveException {
 			ApproxDistinctCountAggBuffer aggBuffer = (ApproxDistinctCountAggBuffer) buffer;
-			if (aggBuffer.sketch.isEmpty()) {
+			if (aggBuffer.sketch == null || aggBuffer.sketch.isEmpty()) {
 				return null;
 			} else {
 				LongWritable cardinality = new LongWritable();

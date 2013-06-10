@@ -158,7 +158,7 @@ public class ModHashUDAF extends AbstractGenericUDAFResolver{
 		public BytesWritable terminate(AggregationBuffer buffer) throws HiveException {
 			ModHashAggBuffer aggBuffer = (ModHashAggBuffer) buffer;
 			BytesWritable signature = new BytesWritable();
-			byte [] b = aggBuffer.signature.toBytes();
+			byte [] b = aggBuffer.signature == null ? new byte[0] : aggBuffer.signature.toBytes();
 			signature.set(b, 0, b.length);
 			return signature;
 		}
@@ -167,7 +167,7 @@ public class ModHashUDAF extends AbstractGenericUDAFResolver{
 		public Object terminatePartial(AggregationBuffer buffer)
 				throws HiveException {
 			ModHashAggBuffer aggBuffer = (ModHashAggBuffer) buffer;
-			byte [] b = aggBuffer.signature.toBytes();
+			byte [] b = aggBuffer.signature == null ? new byte[0] :aggBuffer.signature.toBytes();
 			partial.set(b, 0, b.length);
 			return partial;
 		}
