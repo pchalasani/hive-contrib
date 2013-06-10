@@ -3,6 +3,8 @@ User defined functions and other contributions to Hive from https://git.corp.yah
 
 Release Notes
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Version 0.2
+        Segment By , Reseq, take-n, ModHash and MinHash UDAFs added.
 Version 0.1
         Standard yinst directory structure not in use.
         Built from source at https://git.corp.yahoo.com/harshars/hive-contrib
