@@ -93,8 +93,8 @@ public class SegmentUDAF extends AbstractGenericUDAFResolver {
 		}
 
 		@Override
-		public AggregationBuffer getNewAggregationBuffer() throws HiveException {
-			AggregationBuffer buff= new SegmentAggBuffer();
+		public SegmentAggBuffer getNewAggregationBuffer() throws HiveException {
+			SegmentAggBuffer buff= new SegmentAggBuffer();
 			reset(buff);
 			return buff;
 		}
@@ -145,7 +145,7 @@ public class SegmentUDAF extends AbstractGenericUDAFResolver {
 			}
 			IntWritable count = multiset.get(valCopy);
 			if (count == null) {
-				multiset.put(valCopy, new IntWritable(0));
+				multiset.put(valCopy, new IntWritable(1));
 			} else {
 				count.set(count.get() + 1);
 			}
@@ -173,7 +173,11 @@ public class SegmentUDAF extends AbstractGenericUDAFResolver {
 		@Override
 		public Object terminatePartial(AggregationBuffer buffer) throws HiveException {
 			SegmentAggBuffer aggBuffer = (SegmentAggBuffer) buffer;
-			Map<Object,Object> ret = new HashMap<Object,Object>(aggBuffer.delegate);
+			Map<Object,Object> ret = new HashMap<Object,Object>();
+			for (Map.Entry<Object, Object> e : aggBuffer.delegate.entrySet()) {
+				Map<Object, Object> v = (Map<Object, Object>) e.getValue();
+				ret.put(e.getKey(), new HashMap<Object, Object>(v));
+			}
 			return ret;
 		}
 	}
